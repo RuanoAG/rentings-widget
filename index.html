@@ -256,28 +256,33 @@
     //  CARGA DE DATOS
     // ─────────────────────────────────────────────
     function cargarTodas() {
-        CONFIG.valores.forEach(tipo => {
-            const clave = tipo.toLowerCase();
-            mostrarCargando(clave);
-            cargarPorTipo(tipo).then(registros => {
-                datos[clave] = registros || [];
+        // Mostrar spinner en las 3 pestañas
+        CONFIG.valores.forEach(tipo => mostrarCargando(tipo.toLowerCase()));
+
+        // Traer TODOS los rentings relacionados con la cuenta de una vez
+        ZOHO.CRM.API.getRelatedRecords({
+            Entity:       "Accounts",
+            RecordID:     accountId,
+            RelatedList:  CONFIG.modulo,
+            page:         1,
+            per_page:     200
+        }).then(function(resp) {
+            const todos = (resp && resp.data) ? resp.data : [];
+
+            // Clasificar por tipo en el cliente
+            CONFIG.valores.forEach(tipo => {
+                const clave = tipo.toLowerCase();
+                datos[clave] = todos.filter(r => {
+                    const val = obtenerValor(r, CONFIG.campotipo);
+                    return val.toLowerCase() === tipo.toLowerCase();
+                });
                 actualizarBadge(clave, datos[clave].length);
                 renderTabla(clave, datos[clave]);
-            }).catch(err => {
-                mostrarError(clave);
-                console.error("Error cargando " + tipo, err);
             });
-        });
-    }
 
-    function cargarPorTipo(tipo) {
-        return ZOHO.CRM.API.searchRecord({
-            Entity:  CONFIG.modulo,
-            Type:    "criteria",
-            Query:   `(${CONFIG.campolookup}:equals:${accountId})and(${CONFIG.campotipo}:equals:${tipo})`
-        }).then(resp => {
-            if (resp && resp.data) return resp.data;
-            return [];
+        }).catch(function(err) {
+            CONFIG.valores.forEach(tipo => mostrarError(tipo.toLowerCase()));
+            console.error("Error getRelatedRecords:", JSON.stringify(err));
         });
     }
 

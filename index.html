@@ -277,6 +277,11 @@
     // ─────────────────────────────────────────────
     //  INIT
     // ─────────────────────────────────────────────
+    // Interceptar TODOS los mensajes postMessage que llegan al iframe
+    window.addEventListener("message", function(event) {
+        debug("📨 postMessage recibido de: " + event.origin + " → " + JSON.stringify(event.data).substring(0, 200));
+    });
+
     debug("📍 URL completa: " + window.location.href);
 
     // Método 1: parámetros de URL (funciona en widgets externos tipo Related List)

@@ -173,6 +173,12 @@
 </head>
 <body>
 
+<!-- DEBUG PANEL -->
+<div id="debug-panel" style="background:#fff3cd;border:1px solid #ffc107;padding:8px 12px;font-size:11px;font-family:monospace;display:block;">
+    <strong>⏳ Esperando PageLoad del SDK...</strong>
+    <div id="debug-log"></div>
+</div>
+
 <!-- TABS -->
 <div class="tabs-bar">
     <button class="tab-btn activa active" onclick="switchTab('activa')">
@@ -243,19 +249,39 @@
     let accountId = null;
 
     // ─────────────────────────────────────────────
+    //  DEBUG HELPER
+    // ─────────────────────────────────────────────
+    function debug(msg, color) {
+        const panel = document.getElementById("debug-panel");
+        const log   = document.getElementById("debug-log");
+        panel.style.background = color === "error" ? "#f8d7da" : color === "ok" ? "#d4edda" : "#fff3cd";
+        log.innerHTML += "<div>" + msg + "</div>";
+        console.log("[Widget Debug]", msg);
+    }
+
+    // ─────────────────────────────────────────────
     //  INIT — secuencia correcta para widget externo
     // ─────────────────────────────────────────────
     ZOHO.embeddedApp.on("PageLoad", function(pageData) {
+        debug("✅ PageLoad recibido. EntityId: " + JSON.stringify(pageData.EntityId), "ok");
+        debug("📦 pageData completo: " + JSON.stringify(pageData));
         accountId = pageData.EntityId;
+        if (!accountId) {
+            debug("❌ EntityId es null o undefined", "error");
+            return;
+        }
         cargarTodas();
     });
 
+    debug("🔄 Llamando ZOHO.embeddedApp.init()...");
     ZOHO.embeddedApp.init();
+    debug("✅ init() llamado");
 
     // ─────────────────────────────────────────────
     //  CARGA DE DATOS
     // ─────────────────────────────────────────────
     function cargarTodas() {
+        debug("🔍 Cargando rentings para cuenta: " + accountId);
         // Mostrar spinner en las 3 pestañas
         CONFIG.valores.forEach(tipo => mostrarCargando(tipo.toLowerCase()));
 
@@ -267,7 +293,14 @@
             page:         1,
             per_page:     200
         }).then(function(resp) {
+            debug("📥 Respuesta API: " + JSON.stringify(resp).substring(0, 300));
             const todos = (resp && resp.data) ? resp.data : [];
+            debug("📊 Total registros recibidos: " + todos.length, todos.length > 0 ? "ok" : "error");
+
+            if (todos.length > 0) {
+                debug("🔑 Campos del primer registro: " + Object.keys(todos[0]).join(", "));
+                debug("🔑 Valor Tipo_de_flota: " + JSON.stringify(todos[0][CONFIG.campotipo]));
+            }
 
             // Clasificar por tipo en el cliente
             CONFIG.valores.forEach(tipo => {
@@ -281,8 +314,8 @@
             });
 
         }).catch(function(err) {
+            debug("❌ Error getRelatedRecords: " + JSON.stringify(err), "error");
             CONFIG.valores.forEach(tipo => mostrarError(tipo.toLowerCase()));
-            console.error("Error getRelatedRecords:", JSON.stringify(err));
         });
     }
 

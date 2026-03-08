@@ -297,12 +297,16 @@
             }
         });
 
-        ZOHO.embeddedApp.init().then(function() {
-            debug("✅ init() resuelto");
-            // Método 3: si init resuelve pero PageLoad no ha llegado, esperar 2s más
+        // Pasar serviceOrigin al init() — crítico para datacenter EU (zoho.eu)
+        const params2 = new URLSearchParams(window.location.search);
+        const serviceOrigin = params2.get("serviceOrigin") || "https://crm.zoho.eu";
+        debug("🌍 serviceOrigin: " + serviceOrigin);
+
+        ZOHO.embeddedApp.init({ service: serviceOrigin }).then(function() {
+            debug("✅ init() resuelto con serviceOrigin");
             setTimeout(function() {
                 if (!accountId) {
-                    debug("⚠️ Timeout: PageLoad nunca llegó. URL params: " + window.location.search, "error");
+                    debug("⚠️ Timeout: PageLoad nunca llegó tras init con EU origin", "error");
                 }
             }, 3000);
         }).catch(function(e) {

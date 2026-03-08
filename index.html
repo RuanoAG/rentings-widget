@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rentings por Tipo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 13px;
+        }
+
+        body {
+            background: #f7f8fa;
+            padding: 0;
+        }
+
+        /* ── TABS ── */
+        .tabs-bar {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            background: #fff;
+            padding: 0 12px;
+            gap: 4px;
+        }
+
+        .tab-btn {
+            padding: 10px 18px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: #888;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tab-btn:hover { color: #444; }
+
+        .tab-btn.activa.active  { color: #2e7d32; border-bottom-color: #43a047; }
+        .tab-btn.muerta.active  { color: #c62828; border-bottom-color: #e53935; }
+        .tab-btn.externa.active { color: #1565c0; border-bottom-color: #1e88e5; }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #e0e0e0;
+            color: #555;
+            border-radius: 10px;
+            padding: 1px 7px;
+            font-size: 11px;
+            font-weight: 700;
+            min-width: 20px;
+        }
+        .tab-btn.activa.active  .badge { background: #c8e6c9; color: #2e7d32; }
+        .tab-btn.muerta.active  .badge { background: #ffcdd2; color: #c62828; }
+        .tab-btn.externa.active .badge { background: #bbdefb; color: #1565c0; }
+
+        /* ── PANEL ── */
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        /* ── TOOLBAR ── */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #fff;
+            border-bottom: 1px solid #eee;
+        }
+
+        .search-box {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+            outline: none;
+            transition: border 0.2s;
+        }
+        .search-box:focus { border-color: #1e88e5; }
+
+        .records-count { color: #888; font-size: 12px; }
+
+        /* ── TABLE ── */
+        .table-wrap {
+            overflow-x: auto;
+            background: #fff;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead tr {
+            background: #f0f0f0;
+        }
+
+        thead th {
+            padding: 9px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #444;
+            border-bottom: 1px solid #ddd;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+        thead th:hover { background: #e8e8e8; }
+        thead th .sort-icon { margin-left: 4px; color: #bbb; font-size: 11px; }
+
+        tbody tr {
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.15s;
+        }
+        tbody tr:hover { background: #fafafa; }
+
+        tbody td {
+            padding: 8px 12px;
+            color: #333;
+            vertical-align: middle;
+        }
+
+        .link-cell a {
+            color: #1e88e5;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .link-cell a:hover { text-decoration: underline; }
+
+        /* ── ESTADO CHIP ── */
+        .chip {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .chip.activa  { background: #c8e6c9; color: #2e7d32; }
+        .chip.muerta  { background: #ffcdd2; color: #c62828; }
+        .chip.externa { background: #bbdefb; color: #1565c0; }
+
+        /* ── ESTADOS VACÍOS / CARGA ── */
+        .state-box {
+            padding: 40px 20px;
+            text-align: center;
+            color: #aaa;
+            background: #fff;
+        }
+        .state-box .icon { font-size: 32px; margin-bottom: 10px; }
+        .state-box p { font-size: 13px; }
+        .state-box.error .icon { color: #e53935; }
+
+        .spinner {
+            width: 30px; height: 30px;
+            border: 3px solid #e0e0e0;
+            border-top-color: #1e88e5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<!-- TABS -->
+<div class="tabs-bar">
+    <button class="tab-btn activa active" onclick="switchTab('activa')">
+        🟢 Activas <span class="badge" id="badge-activa">-</span>
+    </button>
+    <button class="tab-btn muerta" onclick="switchTab('muerta')">
+        🔴 Muertas <span class="badge" id="badge-muerta">-</span>
+    </button>
+    <button class="tab-btn externa" onclick="switchTab('externa')">
+        🔵 Externas <span class="badge" id="badge-externa">-</span>
+    </button>
+</div>
+
+<!-- PANEL ACTIVA -->
+<div class="panel active" id="panel-activa">
+    <div class="toolbar">
+        <input class="search-box" type="text" placeholder="Buscar en Activas..." oninput="filterTable('activa', this.value)">
+        <span class="records-count" id="count-activa"></span>
+    </div>
+    <div class="table-wrap" id="table-activa"></div>
+</div>
+
+<!-- PANEL MUERTA -->
+<div class="panel" id="panel-muerta">
+    <div class="toolbar">
+        <input class="search-box" type="text" placeholder="Buscar en Muertas..." oninput="filterTable('muerta', this.value)">
+        <span class="records-count" id="count-muerta"></span>
+    </div>
+    <div class="table-wrap" id="table-muerta"></div>
+</div>
+
+<!-- PANEL EXTERNA -->
+<div class="panel" id="panel-externa">
+    <div class="toolbar">
+        <input class="search-box" type="text" placeholder="Buscar en Externas..." oninput="filterTable('externa', this.value)">
+        <span class="records-count" id="count-externa"></span>
+    </div>
+    <div class="table-wrap" id="table-externa"></div>
+</div>
+
+<!-- SDK de Zoho CRM -->
+<script src="https://live.zwidgets.com/js-sdk/1.1/ZohoEmbeddedAppSDK.min.js"></script>
+
+<script>
+    // ─────────────────────────────────────────────
+    //  CONFIGURACIÓN — ajusta si cambian los nombres
+    // ─────────────────────────────────────────────
+    const CONFIG = {
+        modulo:       "Rentings",
+        campotipo:    "Tipo_de_flota",
+        campolookup:  "Cuenta",
+        valores:      ["Activa", "Muerta", "Externa"],
+        // Campos a mostrar en la tabla (API name → etiqueta visible)
+        columnas: [
+            { api: "Name",               label: "Nombre"          },
+            { api: "N_mero_de_pedido",   label: "Nº Pedido"       },
+            { api: "N_mero_matricula",   label: "Matrícula"       },
+            { api: "Fecha_inicio",       label: "Fecha inicio"    },
+            { api: "Fecha_fin",          label: "Fecha fin"       },
+            { api: "Tipo_de_flota",      label: "Tipo"            }
+        ]
+    };
+
+    // ─────────────────────────────────────────────
+    //  ESTADO GLOBAL
+    // ─────────────────────────────────────────────
+    const datos = { activa: [], muerta: [], externa: [] };
+    let accountId = null;
+
+    // ─────────────────────────────────────────────
+    //  INIT
+    // ─────────────────────────────────────────────
+    ZOHO.embeddedApp.on("PageLoad", function(pageData) {
+        accountId = pageData.EntityId;
+        ZOHO.embeddedApp.init().then(() => {
+            cargarTodas();
+        });
+    });
+
+    ZOHO.embeddedApp.init();
+
+    // ─────────────────────────────────────────────
+    //  CARGA DE DATOS
+    // ─────────────────────────────────────────────
+    function cargarTodas() {
+        CONFIG.valores.forEach(tipo => {
+            const clave = tipo.toLowerCase();
+            mostrarCargando(clave);
+            cargarPorTipo(tipo).then(registros => {
+                datos[clave] = registros || [];
+                actualizarBadge(clave, datos[clave].length);
+                renderTabla(clave, datos[clave]);
+            }).catch(err => {
+                mostrarError(clave);
+                console.error("Error cargando " + tipo, err);
+            });
+        });
+    }
+
+    function cargarPorTipo(tipo) {
+        return ZOHO.CRM.API.searchRecord({
+            Entity:  CONFIG.modulo,
+            Type:    "criteria",
+            Query:   `(${CONFIG.campolookup}:equals:${accountId})and(${CONFIG.campotipo}:equals:${tipo})`
+        }).then(resp => {
+            if (resp && resp.data) return resp.data;
+            return [];
+        });
+    }
+
+    // ─────────────────────────────────────────────
+    //  RENDER
+    // ─────────────────────────────────────────────
+    function renderTabla(clave, registros) {
+        const wrap = document.getElementById("table-" + clave);
+        const countEl = document.getElementById("count-" + clave);
+
+        if (!registros || registros.length === 0) {
+            wrap.innerHTML = `
+                <div class="state-box">
+                    <div class="icon">📭</div>
+                    <p>No hay rentings de tipo <strong>${capitalizar(clave)}</strong> para esta cuenta.</p>
+                </div>`;
+            countEl.textContent = "0 registros";
+            return;
+        }
+
+        countEl.textContent = registros.length + " registro" + (registros.length !== 1 ? "s" : "");
+
+        const thead = CONFIG.columnas.map(c =>
+            `<th onclick="ordenarTabla('${clave}', '${c.api}')">${c.label} <span class="sort-icon">↕</span></th>`
+        ).join("") + "<th>Acción</th>";
+
+        const tbody = registros.map(r => {
+            const celdas = CONFIG.columnas.map(c => {
+                let val = obtenerValor(r, c.api);
+                if (c.api === CONFIG.campotipo) {
+                    val = `<span class="chip ${val.toLowerCase()}">${val}</span>`;
+                }
+                if (c.api === "Name") {
+                    const url = `https://crm.zoho.com/crm/org/tab/${CONFIG.modulo}/${r.id}`;
+                    val = `<span class="link-cell"><a href="${url}" target="_blank">${val}</a></span>`;
+                }
+                return `<td>${val || "—"}</td>`;
+            }).join("");
+
+            const urlDetalle = `https://crm.zoho.com/crm/org/tab/${CONFIG.modulo}/${r.id}`;
+            const accion = `<td><a href="${urlDetalle}" target="_blank" title="Ver detalle">🔗 Ver</a></td>`;
+            return `<tr>${celdas}${accion}</tr>`;
+        }).join("");
+
+        wrap.innerHTML = `
+            <table>
+                <thead><tr>${thead}</tr></thead>
+                <tbody id="tbody-${clave}">${tbody}</tbody>
+            </table>`;
+    }
+
+    // ─────────────────────────────────────────────
+    //  FILTRO DE BÚSQUEDA
+    // ─────────────────────────────────────────────
+    function filterTable(clave, texto) {
+        const tbody = document.getElementById("tbody-" + clave);
+        if (!tbody) return;
+        const termino = texto.toLowerCase();
+        const filas = tbody.querySelectorAll("tr");
+        let visibles = 0;
+        filas.forEach(fila => {
+            const contenido = fila.textContent.toLowerCase();
+            const visible = contenido.includes(termino);
+            fila.style.display = visible ? "" : "none";
+            if (visible) visibles++;
+        });
+        document.getElementById("count-" + clave).textContent =
+            visibles + " registro" + (visibles !== 1 ? "s" : "") +
+            (termino ? " (filtrado)" : "");
+    }
+
+    // ─────────────────────────────────────────────
+    //  ORDENACIÓN
+    // ─────────────────────────────────────────────
+    const ordenState = {};
+    function ordenarTabla(clave, campo) {
+        const key = clave + "_" + campo;
+        ordenState[key] = !ordenState[key]; // toggle asc/desc
+
+        const copia = [...datos[clave]].sort((a, b) => {
+            const va = (obtenerValor(a, campo) || "").toString().toLowerCase();
+            const vb = (obtenerValor(b, campo) || "").toString().toLowerCase();
+            if (va < vb) return ordenState[key] ? -1 : 1;
+            if (va > vb) return ordenState[key] ? 1 : -1;
+            return 0;
+        });
+        renderTabla(clave, copia);
+    }
+
+    // ─────────────────────────────────────────────
+    //  HELPERS
+    // ─────────────────────────────────────────────
+    function switchTab(tipo) {
+        document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.getElementById("panel-" + tipo).classList.add("active");
+        document.querySelector(".tab-btn." + tipo).classList.add("active");
+    }
+
+    function mostrarCargando(clave) {
+        document.getElementById("table-" + clave).innerHTML = `
+            <div class="state-box">
+                <div class="spinner"></div>
+                <p>Cargando rentings...</p>
+            </div>`;
+        document.getElementById("count-" + clave).textContent = "";
+    }
+
+    function mostrarError(clave) {
+        document.getElementById("table-" + clave).innerHTML = `
+            <div class="state-box error">
+                <div class="icon">⚠️</div>
+                <p>Error al cargar los datos. Comprueba los permisos del módulo Rentings.</p>
+            </div>`;
+    }
+
+    function actualizarBadge(clave, n) {
+        document.getElementById("badge-" + clave).textContent = n;
+    }
+
+    function capitalizar(s) {
+        return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    function obtenerValor(registro, campo) {
+        const val = registro[campo];
+        if (val === null || val === undefined) return "";
+        if (typeof val === "object" && val.name) return val.name;
+        // Formatear fechas a DD/MM/AAAA
+        if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}/.test(val)) {
+            const [y, m, d] = val.substring(0, 10).split("-");
+            return `${d}/${m}/${y}`;
+        }
+        return val;
+    }
+</script>
+</body>
+</html>

@@ -243,13 +243,11 @@
     let accountId = null;
 
     // ─────────────────────────────────────────────
-    //  INIT
+    //  INIT — secuencia correcta para widget externo
     // ─────────────────────────────────────────────
     ZOHO.embeddedApp.on("PageLoad", function(pageData) {
         accountId = pageData.EntityId;
-        ZOHO.embeddedApp.init().then(() => {
-            cargarTodas();
-        });
+        cargarTodas();
     });
 
     ZOHO.embeddedApp.init();

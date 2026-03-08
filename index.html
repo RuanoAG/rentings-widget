@@ -255,27 +255,60 @@
         const panel = document.getElementById("debug-panel");
         const log   = document.getElementById("debug-log");
         panel.style.background = color === "error" ? "#f8d7da" : color === "ok" ? "#d4edda" : "#fff3cd";
-        log.innerHTML += "<div>" + msg + "</div>";
+        log.innerHTML += "<div>" + new Date().toLocaleTimeString() + " → " + msg + "</div>";
         console.log("[Widget Debug]", msg);
     }
 
     // ─────────────────────────────────────────────
-    //  INIT — secuencia correcta para widget externo
+    //  OBTENER EntityId — 3 métodos de fallback
     // ─────────────────────────────────────────────
-    ZOHO.embeddedApp.on("PageLoad", function(pageData) {
-        debug("✅ PageLoad recibido. EntityId: " + JSON.stringify(pageData.EntityId), "ok");
-        debug("📦 pageData completo: " + JSON.stringify(pageData));
-        accountId = pageData.EntityId;
-        if (!accountId) {
-            debug("❌ EntityId es null o undefined", "error");
-            return;
-        }
-        cargarTodas();
-    });
+    function getEntityIdFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        // Zoho puede pasar el ID con distintos nombres
+        return params.get("EntityId") || params.get("recordId") || params.get("entity_id") || null;
+    }
 
-    debug("🔄 Llamando ZOHO.embeddedApp.init()...");
-    ZOHO.embeddedApp.init();
-    debug("✅ init() llamado");
+    function arrancar(id) {
+        accountId = id;
+        debug("🚀 Arrancando con accountId: " + accountId, "ok");
+        cargarTodas();
+    }
+
+    // ─────────────────────────────────────────────
+    //  INIT
+    // ─────────────────────────────────────────────
+    debug("📍 URL completa: " + window.location.href);
+
+    // Método 1: parámetros de URL (funciona en widgets externos tipo Related List)
+    const idFromURL = getEntityIdFromURL();
+    if (idFromURL) {
+        debug("✅ EntityId desde URL: " + idFromURL, "ok");
+        arrancar(idFromURL);
+    } else {
+        debug("⚠️ No hay EntityId en URL, esperando PageLoad del SDK...");
+
+        // Método 2: evento PageLoad del SDK
+        ZOHO.embeddedApp.on("PageLoad", function(pageData) {
+            debug("✅ PageLoad recibido: " + JSON.stringify(pageData), "ok");
+            if (pageData && pageData.EntityId) {
+                arrancar(pageData.EntityId);
+            } else {
+                debug("❌ PageLoad sin EntityId: " + JSON.stringify(pageData), "error");
+            }
+        });
+
+        ZOHO.embeddedApp.init().then(function() {
+            debug("✅ init() resuelto");
+            // Método 3: si init resuelve pero PageLoad no ha llegado, esperar 2s más
+            setTimeout(function() {
+                if (!accountId) {
+                    debug("⚠️ Timeout: PageLoad nunca llegó. URL params: " + window.location.search, "error");
+                }
+            }, 3000);
+        }).catch(function(e) {
+            debug("❌ init() error: " + JSON.stringify(e), "error");
+        });
+    }
 
     // ─────────────────────────────────────────────
     //  CARGA DE DATOS
